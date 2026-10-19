@@ -1,0 +1,186 @@
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0;
+    padding: 12px 14px;
+    font: 11px/1.45 Inter, -apple-system, system-ui, sans-serif;
+    color: var(--figma-color-text, #333);
+    background: var(--figma-color-bg, #fff);
+  }
+  h1 { font-size: 11px; font-weight: 600; margin: 0 0 10px; display: flex; align-items: center; gap: 6px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--figma-color-icon-danger, #d1242f); flex: none; }
+  .dot.on { background: var(--figma-color-icon-success, #1a7f37); }
+  .card {
+    padding: 8px 9px; border-radius: 5px; margin-bottom: 10px;
+    background: var(--figma-color-bg-secondary, #f5f5f5);
+    color: var(--figma-color-text-secondary, #666);
+  }
+  .card b { color: var(--figma-color-text, #333); font-weight: 500; }
+  .row { display: flex; gap: 8px; margin-bottom: 10px; }
+  button {
+    flex: 1; padding: 6px 10px; font: inherit; font-weight: 500; cursor: pointer;
+    border-radius: 5px; border: 1px solid var(--figma-color-border, #d9d9d9);
+    background: transparent; color: var(--figma-color-text, #333);
+  }
+  button.primary { background: var(--figma-color-bg-brand, #0d99ff); color: #fff; border-color: transparent; }
+  #log {
+    height: 168px; overflow: auto; border-radius: 5px; padding: 6px 8px;
+    background: var(--figma-color-bg-secondary, #f5f5f5);
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 10px;
+  }
+  #log div { white-space: pre; }
+  .ok { color: var(--figma-color-text-success, #1a7f37); }
+  .err { color: var(--figma-color-text-danger, #d1242f); }
+  .dim { color: var(--figma-color-text-tertiary, #999); }
+  .hint { margin-top: 9px; color: var(--figma-color-text-secondary, #888); }
+  code { font-family: ui-monospace, Menlo, Consolas, monospace; }
+</style>
+
+<h1><span class="dot" id="dot"></span><span id="state">connecting…</span></h1>
+
+<div class="card">
+  <div><b id="file">—</b></div>
+  <div id="page" class="dim">—</div>
+</div>
+
+<div class="row">
+  <button id="toggle" class="primary">Pause</button>
+  <button id="clear">Clear log</button>
+</div>
+
+<div id="log"></div>
+
+<div class="hint">
+  Keep this window open — closing it disconnects Claude and the CLI from Figma.
+</div>
+
+<script>
+  // Must match manifest devAllowedDomains exactly — Figma blocks anything else,
+  // and its validator rejects a raw IP there, so this is `localhost` by name.
+  // `figma-bridge plugin install --port <n>` rewrites this line and the manifest together.
+  const BRIDGE = 'http://localhost:7332';
+  // Must equal PROTOCOL in code.js and bridge/lib/protocol.mjs (a test checks).
+  const PROTOCOL = 1;
+  const JOB_TIMEOUT = 180000; // a wedged command must not wedge the poll loop
+
+  const $ = (id) => document.getElementById(id);
+  const status = { file: '', page: '' };
+  const pending = new Map(); // job id → resolve()
+  let running = true;
+  let misses = 0;
+  let chain = Promise.resolve(); // keeps chunk POSTs in order
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const kb = (n) => (n < 1024 ? n + ' B' : (n / 1024).toFixed(n < 1024 * 100 ? 1 : 0) + ' kB');
+
+  function log(text, cls) {
+    const line = document.createElement('div');
+    line.textContent = text;
+    if (cls) line.className = cls;
+    $('log').appendChild(line);
+    $('log').scrollTop = $('log').scrollHeight;
+    while ($('log').childElementCount > 200) $('log').firstChild.remove();
+  }
+
+  function setLive(on, note) {
+    $('dot').className = 'dot' + (on ? ' on' : '');
+    $('state').textContent = !running ? 'paused' : on ? 'connected' : note || 'no bridge';
+  }
+
+  function post(body) {
+    return fetch(BRIDGE + '/result', {
+      method: 'POST',
+      // text/plain keeps this a simple request, so the bridge needs no preflight.
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(body),
+    });
+  }
+
+  function settle(id) {
+    const done = pending.get(id);
+    if (done) {
+      pending.delete(id);
+      done();
+    }
+  }
+
+  async function loop() {
+    while (true) {
+      if (!running) {
+        await sleep(300);
+        continue;
+      }
+      try {
+        const query =
+          '?file=' + encodeURIComponent(status.file) +
+          '&page=' + encodeURIComponent(status.page) +
+          '&v=' + PROTOCOL;
+        const res = await fetch(BRIDGE + '/pull' + query);
+        if (!res.ok && res.status !== 204) throw new Error('HTTP ' + res.status);
+        misses = 0;
+        setLive(true);
+        if (res.status === 204) continue; // nothing queued — poll again
+
+        const job = await res.json();
+        log('→ ' + job.cmd + ' ' + JSON.stringify(job.args || {}).slice(0, 60));
+        const finished = new Promise((resolve) => pending.set(job.id, resolve));
+        parent.postMessage({ pluginMessage: { type: 'run', id: job.id, cmd: job.cmd, args: job.args } }, '*');
+        await Promise.race([finished, sleep(JOB_TIMEOUT).then(() => settle(job.id))]);
+      } catch (err) {
+        misses++;
+        setLive(false, 'waiting for Claude or the CLI');
+        if (misses === 1) log('· relay unreachable — retrying', 'err');
+        await sleep(Math.min(500 * misses, 5000));
+      }
+    }
+  }
+
+  onmessage = (event) => {
+    const msg = event.data.pluginMessage;
+    if (!msg) return;
+
+    if (msg.type === 'status') {
+      status.file = msg.file;
+      status.page = msg.page;
+      $('file').textContent = msg.file;
+      $('page').textContent = msg.page + (msg.selection ? ' · ' + msg.selection + ' selected' : '');
+      return;
+    }
+
+    // Slices arrive in order and are forwarded untouched; the bridge reassembles.
+    if (msg.type === 'chunk') {
+      chain = chain
+        .then(() => post({ id: msg.id, seq: msg.seq, final: msg.final, ok: true, chunk: msg.chunk }))
+        .then(() => {
+          if (msg.final) {
+            log('✓ ' + kb(msg.bytes || 0) + ' in ' + (msg.ms || 0) + ' ms', 'ok');
+            settle(msg.id);
+          }
+        })
+        .catch((err) => {
+          log('✗ could not reach the bridge: ' + err.message, 'err');
+          settle(msg.id);
+        });
+      return;
+    }
+
+    if (msg.type === 'failed') {
+      chain = chain
+        .then(() => post({ id: msg.id, final: true, ok: false, error: msg.error }))
+        .catch(() => {})
+        .then(() => {
+          log('✗ ' + msg.error, 'err');
+          settle(msg.id);
+        });
+    }
+  };
+
+  $('toggle').onclick = () => {
+    running = !running;
+    $('toggle').textContent = running ? 'Pause' : 'Resume';
+    setLive(running && misses === 0);
+  };
+  $('clear').onclick = () => ($('log').textContent = '');
+
+  loop();
+</script>

@@ -1,0 +1,15 @@
+{
+  "name": "figma-bridge",
+  "id": "1691348482941559806",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma", "dev"],
+  "capabilities": ["inspect"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": ["none"],
+    "devAllowedDomains": ["http://localhost:7332"],
+    "reasoning": "Polls the local figma-bridge relay on localhost for read-only commands and posts the answers back. Loopback only, development plugin only — nothing leaves the machine and the document is never modified except the current selection."
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "name": "@ubuligan/figma-bridge",
+  "version": "1.0.0",
+  "description": "Read a live Figma file from Claude or the terminal — local MCP server + Figma plugin, no API token.",
+  "type": "module",
+  "bin": {
+    "figma-bridge": "bin/figma-bridge.mjs"
+  },
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin/",
+    "bridge/",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "author": "Javid Salimov",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/javidselimov/figma-bridge.git"
+  },
+  "bugs": "https://github.com/javidselimov/figma-bridge/issues",
+  "homepage": "https://github.com/javidselimov/figma-bridge#readme",
+  "keywords": [
+    "figma",
+    "mcp",
+    "claude",
+    "design-tokens",
+    "figma-plugin",
+    "model-context-protocol"
+  ],
+  "scripts": {
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "check:pack": "node scripts/check-pack.mjs",
+    "prepublishOnly": "npm test"
+  }
+}
