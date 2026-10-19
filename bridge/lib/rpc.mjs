@@ -23,6 +23,8 @@ const base = () => `http://127.0.0.1:${port}`;
 
 /** The relay this process is hosting, if any — kept so it can be closed. */
 let hosted = null;
+/** An `ensureRelay` in flight, shared by overlapping callers. */
+let ensuring = null;
 
 const NOT_CONNECTED =
   'The figma-bridge plugin is not connected. In Figma desktop: Plugins → Development → figma-bridge.';
@@ -48,7 +50,16 @@ export async function health(timeout = 1500) {
  *
  * @returns {Promise<{ hosted: boolean, state: any }>} `hosted` = this process runs the relay
  */
-export async function ensureRelay({ log } = {}) {
+export function ensureRelay({ log } = {}) {
+  // Callers overlap (MCP `initialize` fires one without waiting); sharing the
+  // attempt stops a second caller seeing the relay before `hosted` is set.
+  ensuring ??= startOrJoinRelay(log).finally(() => {
+    ensuring = null;
+  });
+  return ensuring;
+}
+
+async function startOrJoinRelay(log) {
   const running = await health();
   if (running) return { hosted: !!hosted, state: running };
 
