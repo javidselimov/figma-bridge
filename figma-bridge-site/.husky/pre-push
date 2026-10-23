@@ -1,0 +1,1 @@
+cd figma-bridge-site && npm run typecheck && npm run test

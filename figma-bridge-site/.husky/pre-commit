@@ -1,0 +1,3 @@
+# Hooks live in the parent repo (core.hooksPath → figma-bridge-site/.husky/_) and run from its root.
+git diff --cached --name-only -- figma-bridge-site | grep -q . || exit 0
+cd figma-bridge-site && npx lint-staged
