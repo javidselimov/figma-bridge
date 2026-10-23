@@ -83,25 +83,26 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* Terminal palette from https://reactivite.vercel.app/ (phosphor green on near-black) */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: #07090b;
+  --foreground: #e4e4e7;
+  --card: rgb(0 0 0 / 40%);
+  --card-foreground: #e4e4e7;
+  --popover: #07090b;
+  --popover-foreground: #e4e4e7;
+  --primary: #4ade80;
+  --primary-foreground: #000000;
+  --secondary: #18181b;
+  --secondary-foreground: #e4e4e7;
+  --muted: #18181b;
+  --muted-foreground: #a1a1aa;
+  --accent: rgb(74 222 128 / 10%);
+  --accent-foreground: #4ade80;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --border: #27272a;
+  --input: #3f3f46;
+  --ring: #4ade80;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -126,5 +127,54 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* Grid + scanline texture borrowed from https://reactivite.vercel.app/ */
+:root {
+  --texture-line: oklch(0.8 0.18 150 / 12%);
+  --texture-scanline: oklch(0 0 0 / 6%);
+}
+
+.dark {
+  --texture-line: #4ade8012;
+  --texture-scanline: #00000040;
+}
+
+@utility texture-grid {
+  background-image:
+    linear-gradient(to right, var(--texture-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--texture-line) 1px, transparent 1px);
+  background-size: 36px 36px;
+}
+
+@utility texture-scanlines {
+  background: repeating-linear-gradient(transparent 0 2px, var(--texture-scanline) 2px 3px);
+}
+
+/* Gradient card: green and dark bands drifting slowly across the surface (GradientCard) */
+@keyframes gradient-shift {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@utility gradient-shift {
+  background-color: color-mix(in oklab, var(--primary) 6%, transparent);
+  background-image: repeating-linear-gradient(
+    100deg,
+    transparent 0,
+    color-mix(in oklab, var(--primary) 12%, transparent) 12%,
+    transparent 25%,
+    rgb(0 0 0 / 18%) 37%,
+    transparent 50%
+  );
+  background-size: 200% 100%;
+  animation: gradient-shift 6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gradient-shift {
+    animation: none;
   }
 }

@@ -4,15 +4,10 @@ import type { ReactNode } from "react";
 
 export type ThemeProviderProps = { children: ReactNode };
 
-// `.dark` class on <html> drives the shadcn tokens; follows the OS until the user picks a theme.
+// `.dark` class on <html> drives the shadcn tokens; forced dark to match the terminal palette.
 export function ThemeProvider({ children }: ThemeProviderProps) {
   return (
-    <NextThemesProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
-    >
+    <NextThemesProvider attribute="class" forcedTheme="dark" disableTransitionOnChange>
       {children}
     </NextThemesProvider>
   );
