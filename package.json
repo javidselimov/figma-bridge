@@ -1,6 +1,6 @@
 {
   "name": "@ubuligan/figma-bridge",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Read a live Figma file from Claude or the terminal — local MCP server + Figma plugin, no API token.",
   "type": "module",
   "bin": {

@@ -6,6 +6,12 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [1.0.1]
+
+### Fixed
+
+- An MCP tool call sent right after `initialize` no longer fails with "plugin is not connected" instead of waiting for the plugin: overlapping relay starts now share one attempt.
+
 ## [1.0.0]
 
 First public release as `@ubuligan/figma-bridge`.
